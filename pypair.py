@@ -69,6 +69,9 @@ class Tornament(object):
         for points in pointLists:
             pointTotals.append(points)
             
+            #Randomize the players in the list so the first player isn't always the first paired
+            random.shuffle(pointLists[points])
+            
         pointTotals.sort()
 
         for points in pointTotals:
@@ -87,7 +90,7 @@ class Tornament(object):
                 else:
                     self.assignBye(pointLists[points].pop(0))
                     
-        print self.roundPairings
+        #print self.roundPairings
         return self.roundPairings
                 
     def pairPlayers( self, p1, p2 ):
@@ -101,3 +104,12 @@ class Tornament(object):
         
         #Add points for "winning"
         self.playersDict[p1]["Points"] += 3
+        
+    def reportMatch( self, p1, p2, result ):
+        if result == "draw":
+            self.playersDict[p1]["Points"] += 1
+            self.playersDict[p2]["Points"] += 1
+            
+        else:
+            #If the result is not "draw" then it should be the DCI number of the winning player
+            self.playersDict[int(result)]["Points"] += 3
