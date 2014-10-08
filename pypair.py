@@ -2,9 +2,6 @@
 A tool for pairing players in a swiss event
 '''
 
-#Network library to handle pairing players
-# http://networkx.github.io/documentation/networkx-1.9.1/overview.html
-import networkx as nx
 #Library for loading player dumps
 import cPickle as pickle
 import random
@@ -27,9 +24,6 @@ class Tornament(object):
         
         self.roundPairings = {}
         
-        #NetworkX object to make pairing easier
-        self.playersNetwork = nx.Graph()
-        
     def addPlayer( self, DCINumber, playerName ):
         self.playersDict[DCINumber] = {  "Name": playerName,
                                         "Opponents":[],
@@ -49,7 +43,9 @@ class Tornament(object):
             
             2.) Create a list of all current points and sort from highest to lowest
             
-            3.) Assign edge weights based on how close in points the players are
+            3.) Loop through each list of points and assign players opponents based with same points
+            
+            4.) Check for left over players and assign a pair down
         """
         
         #Clear old round pairings
