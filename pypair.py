@@ -11,7 +11,7 @@ import random
 dbg = True
 debuglevel = 1
 
-class Tornament(object):
+class Tournament(object):
     def __init__( self, startingTable=1 ):
         
         '''
@@ -103,7 +103,7 @@ class Tornament(object):
             
         pointTotals.sort(reverse=True, key=lambda s: int(s.split('_')[0]))
         
-        printdbg( "Pointals after sorting high to low are: %s"%pointTotals, 1 )
+        printdbg( "Point toals after sorting high to low are: %s"%pointTotals, 1 )
 
         for points in pointTotals:
             printdbg(  points ) 
