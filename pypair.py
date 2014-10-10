@@ -6,8 +6,10 @@ A tool for pairing players in a swiss event
 import cPickle as pickle
 import random
 
+dbg = True
+
 class Tornament(object):
-    def __init__( self ):
+    def __init__( self, startingTable=1 ):
         
         '''
         Holds player data that are in the event.
@@ -15,18 +17,22 @@ class Tornament(object):
         Each player entry is a dictonary named by DCI#
 
         DCI : { Name:String,
-                Opponents:List,
+                Opponents:List, Each entry is a DCI number of someone you played
+                Results:List, Each entry is a list of wins-losses-draws for the round
                 Points:Int,
                 OMW%:Float}
         '''
         
         self.playersDict = {}
-        
+        self.currentRound = 1
+        self.openTable = 0
+        self.startingTable = startingTable
         self.roundPairings = {}
         
     def addPlayer( self, DCINumber, playerName ):
         self.playersDict[DCINumber] = {  "Name": playerName,
                                         "Opponents":[],
+                                        "Results":[],
                                         "Points":0,
                                         "OMW%": 0.0}
 
@@ -50,6 +56,7 @@ class Tornament(object):
         
         #Clear old round pairings
         self.roundPairings = {}
+        self.openTable = self.startingTable
         
         #Contains lists of players sorted by how many points they currently have
         pointLists = {}
@@ -72,44 +79,70 @@ class Tornament(object):
             #Randomize the players in the list so the first player isn't always the first paired
             random.shuffle(pointLists[points])
             
-        pointTotals.sort()
+        pointTotals.sort(reverse=True)
 
         for points in pointTotals:
+            printdbg(  points ) 
             #While we have 2 or more players with the same points, pair them
             while len(pointLists[points]) > 1:
                 ourPlayer = pointLists[points].pop(0)
-                ourOpponent = pointLists[points].pop(random.randint(0, len(pointLists[points])-1))
+                ourOpponent = pointLists[points].pop(0)
                 
                 self.pairPlayers(ourPlayer, ourOpponent)
                 
             #Check if we have an odd man out that we need to pair down
             if len(pointLists[points]) == 1:
                 #Check to make sure we aren't at the last player in the event
-                if pointTotals.index(points) < len(pointTotals) -1:
-                    nextPoint = pointTotals.index(points) + 1
-                else:
+                printdbg(  "Player %s left in %s. The index is %s and the length of totals is %s"%(pointLists[points][0], points, pointTotals.index(points), len(pointTotals)))
+                if pointTotals.index(points) + 1 == len(pointTotals):
                     self.assignBye(pointLists[points].pop(0))
+                else:
+                    nextPoints = pointTotals[pointTotals.index(points) + 1]
                     
-        #print self.roundPairings
+                    ourPlayer = pointLists[points].pop(0)
+                    ourOpponent = pointLists[nextPoints].pop(0)
+                    
+                    self.pairPlayers(ourPlayer, ourOpponent)
+                    
         return self.roundPairings
                 
     def pairPlayers( self, p1, p2 ):
+        printdbg("Pairing players %s and %s"%(p1, p2))
+        
         self.playersDict[p1]["Opponents"].append(p2)
         self.playersDict[p2]["Opponents"].append(p1)
             
-        self.roundPairings[p1] = p2
+        self.roundPairings[self.openTable] = [p1, p2]
+        
+        self.openTable += 1
 
     def assignBye( self, p1, reason="bye" ):
+        printdbg( "%s got the bye"%p1)
         self.roundPairings[p1] = reason
+        self.playersDict[p1]["Results"].append([0,0,0])
         
         #Add points for "winning"
         self.playersDict[p1]["Points"] += 3
         
-    def reportMatch( self, p1, p2, result ):
-        if result == "draw":
+    def reportMatch( self, table, result ):
+        #table is an integer of the table number, result is a list
+        p1 = self.roundPairings[table][0]
+        p2 = self.roundPairings[table][1]
+        if result[0] == result[1]:
             self.playersDict[p1]["Points"] += 1
+            self.playersDict[p1]["Results"].append(result)
             self.playersDict[p2]["Points"] += 1
+            self.playersDict[p2]["Results"].append(result)
             
         else:
-            #If the result is not "draw" then it should be the DCI number of the winning player
-            self.playersDict[int(result)]["Points"] += 3
+            if result[0] > result[1]:
+                self.playersDict[p1]["Points"] += 3
+                self.playersDict[p1]["Results"].append(result)
+            elif result[1] > result[0]:
+                self.playersDict[p2]["Points"] += 3
+                result[0], result[1] = result[1], result[0]
+                self.playersDict[p2]["Results"].append(result)
+
+def printdbg( msg ):
+    if dbg == True:
+        print msg
