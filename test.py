@@ -1,12 +1,12 @@
 #A simple script for testing pypair
 
-from pypair import Tornament
+from pypair import Tournament
 import random
 import os
 
 home = os.path.expanduser("~")
 
-to = Tornament()
+to = Tournament()
 
 for p in range(4501):
     to.addPlayer( str(p), "Timmy" )

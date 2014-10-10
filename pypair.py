@@ -13,23 +13,15 @@ debuglevel = 1
 
 class Tournament(object):
     def __init__( self, startingTable=1 ):
-        
-        '''
-        Holds player data that are in the event.
-
-        Each player entry is a dictonary named by DCI#
-
-        DCI : { Name:String,
-                Opponents:List, Each entry is a DCI number of someone you played
-                Results:List, Each entry is a list of wins-losses-draws for the round
-                Points:Int,
-                OMW%:Float}
-        '''
-        
+        #Will hold all player data
         self.playersDict = {}
+        #Current round for the event
         self.currentRound = 0
+        #The next table we are going to assign paired players to
         self.openTable = 0
+        #The starting table number
         self.startingTable = startingTable
+        #Pairings for the current round
         self.roundPairings = {}
         
         #this defines the max number of players in a network point range before we split it up. Lower the number, faster the calculations
@@ -42,11 +34,26 @@ class Tournament(object):
         self.pointTotals = []
         
     def addPlayer( self, DCINumber, playerName ):
+        
+        '''
+        Holds player data that are in the event.
+
+        Each player entry is a dictonary named by DCI#
+
+        DCI : { Name:String,
+                Opponents:List, Each entry is a DCI number of someone you played
+                Results:List, Each entry is a list of wins-losses-draws for the round
+                Points:Int,
+                OMW%:Float,
+                Fixed Seating:Bool/Int, if False no fixed seating, if int that is the assigned table number}
+        '''
+        
         self.playersDict[DCINumber] = {  "Name": playerName,
                                         "Opponents":[],
                                         "Results":[],
                                         "Points":0,
-                                        "OMW%": 0.0}
+                                        "OMW%": 0.0,
+                                        "Fixed Seating":False}
 
     def loadEventData( self, pathToLoad ):
         self.playersDict = pickle.load( open( pathToLoad, "rb" ) )
@@ -77,11 +84,13 @@ class Tournament(object):
         #Contains a list of points in the event from high to low
         self.pointTotals = pointTotals = []
         
+        #Counts our groupings for each point amount
         self.countPoints = {}
         
         #Add all players to pointLists
         for player in self.playersDict:
             info = self.playersDict[player]
+            #If this point amount isn't in the list, add it
             if "%s_1"%info['Points'] not in pointLists:
                 pointLists["%s_1"%info['Points']] = []
                 self.countPoints[info['Points']] = 1
@@ -91,7 +100,8 @@ class Tournament(object):
             if len(pointLists["%s_%s"%(info['Points'], self.countPoints[info['Points']])]) > self.MaxGroup:
                 self.countPoints[info['Points']] += 1
                 pointLists["%s_%s"%(info['Points'], self.countPoints[info['Points']])] = []
-                
+            
+            #Add our player to the correct group
             pointLists["%s_%s"%(info['Points'], self.countPoints[info['Points']])].append(player)
             
         #Add all points in use to pointTotals
@@ -101,30 +111,39 @@ class Tournament(object):
             #Randomize the players in the list so the first player isn't always the first paired
             random.shuffle(pointLists[points])
             
+        #Sort our point groups based on points
         pointTotals.sort(reverse=True, key=lambda s: int(s.split('_')[0]))
         
         printdbg( "Point toals after sorting high to low are: %s"%pointTotals, 1 )
 
+        #Actually pair the players utilizing graph theory networkx
         for points in pointTotals:
             printdbg(  points ) 
+            
+            #Create the graph object and add all players to it
             bracketGraph = nx.Graph()
             bracketGraph.add_nodes_from(pointLists[points])
             
             printdbg( pointLists[points], 5 )
             printdbg( bracketGraph.nodes(), 5 )
             
+            #Create edges between all players in the graph who haven't already played
             for player in bracketGraph.nodes():
                 for opponent in bracketGraph.nodes():
                     if opponent not in self.playersDict[player]["Opponents"] and player != opponent:
+                        #Weight 1 is the default, if a person has more points, give higher weight to make sure they get paired this time
                         wgt = 1
                         if self.playersDict[player]["Points"] > points or self.playersDict[opponent]["Points"] > points:
                             wgt = 2
+                        #Create edge
                         bracketGraph.add_edge(player, opponent, weight=wgt)
-                        
+            
+            #Generate pairings from the created graph
             pairings = nx.max_weight_matching(bracketGraph)
             
             printdbg( pairings, 3 )
             
+            #Actually pair the players based on the matching we found
             for p in pairings:
                 if p in pointLists[points]:
                     self.pairPlayers(p, pairings[p])
@@ -137,6 +156,7 @@ class Tournament(object):
                 printdbg(  "Player %s left in %s. The index is %s and the length of totals is %s"%(pointLists[points][0], points, pointTotals.index(points), len(pointTotals)), 1)
                 if pointTotals.index(points) + 1 == len(pointTotals):
                     while len(pointLists[points]) > 0:
+                        #If they are the last player give them a bye
                         self.assignBye(pointLists[points].pop(0))
                 else:
                     #Add our player to the next point group down
@@ -170,12 +190,13 @@ class Tournament(object):
         p1 = self.roundPairings[table][0]
         p2 = self.roundPairings[table][1]
         if result[0] == result[1]:
+            #If values are the same they drew! Give'em each a point
             self.playersDict[p1]["Points"] += 1
             self.playersDict[p1]["Results"].append(result)
             self.playersDict[p2]["Points"] += 1
             self.playersDict[p2]["Results"].append(result)
-            
         else:
+            #Figure out who won and assing points
             if result[0] > result[1]:
                 self.playersDict[p1]["Points"] += 3
                 printdbg("Adding result %s for player %s"%(result, p1), 2)
