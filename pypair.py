@@ -33,7 +33,10 @@ class Tournament(object):
         #Contains a list of points in the event from high to low
         self.pointTotals = []
         
-    def addPlayer( self, DCINumber, playerName ):
+        #Contains the list of tables that haven't reported for the current round
+        self.tablesOut = []
+        
+    def addPlayer( self, DCINumber, playerName, fixedSeating=False ):
         
         '''
         Holds player data that are in the event.
@@ -53,7 +56,7 @@ class Tournament(object):
                                         "Results":[],
                                         "Points":0,
                                         "OMW%": 0.0,
-                                        "Fixed Seating":False}
+                                        "Fixed Seating":fixedSeating}
 
     def loadEventData( self, pathToLoad ):
         self.playersDict = pickle.load( open( pathToLoad, "rb" ) )
@@ -61,7 +64,7 @@ class Tournament(object):
     def saveEventData( self, pathToSave ):
         pickle.dump( self.playersDict, open( pathToSave, "wb" ))
 
-    def pairRound( self ):
+    def pairRound( self, forcePair=False ):
         """
         Process overview:
             1.) Create lists of players with each point value
@@ -72,100 +75,116 @@ class Tournament(object):
             
             4.) Check for left over players and assign a pair down
         """
-        self.currentRound += 1
-        
-        #Clear old round pairings
-        self.roundPairings = {}
-        self.openTable = self.startingTable
-        
-        #Contains lists of players sorted by how many points they currently have
-        self.pointLists = pointLists = {}
-        
-        #Contains a list of points in the event from high to low
-        self.pointTotals = pointTotals = []
-        
-        #Counts our groupings for each point amount
-        self.countPoints = {}
-        
-        #Add all players to pointLists
-        for player in self.playersDict:
-            info = self.playersDict[player]
-            #If this point amount isn't in the list, add it
-            if "%s_1"%info['Points'] not in pointLists:
-                pointLists["%s_1"%info['Points']] = []
-                self.countPoints[info['Points']] = 1
+        if not len(self.tablesOut) or forcePair:
+            self.currentRound += 1
             
-            #Breakers the players into groups of their current points up to the max group allowed.
-            #Smaller groups mean faster calculations
-            if len(pointLists["%s_%s"%(info['Points'], self.countPoints[info['Points']])]) > self.MaxGroup:
-                self.countPoints[info['Points']] += 1
-                pointLists["%s_%s"%(info['Points'], self.countPoints[info['Points']])] = []
+            #Clear old round pairings
+            self.roundPairings = {}
+            self.openTable = self.startingTable
             
-            #Add our player to the correct group
-            pointLists["%s_%s"%(info['Points'], self.countPoints[info['Points']])].append(player)
+            #Contains lists of players sorted by how many points they currently have
+            self.pointLists = pointLists = {}
             
-        #Add all points in use to pointTotals
-        for points in pointLists:
-            pointTotals.append(points)
+            #Contains a list of points in the event from high to low
+            self.pointTotals = pointTotals = []
             
-            #Randomize the players in the list so the first player isn't always the first paired
-            random.shuffle(pointLists[points])
+            #Counts our groupings for each point amount
+            self.countPoints = {}
             
-        #Sort our point groups based on points
-        pointTotals.sort(reverse=True, key=lambda s: int(s.split('_')[0]))
-        
-        printdbg( "Point toals after sorting high to low are: %s"%pointTotals, 1 )
-
-        #Actually pair the players utilizing graph theory networkx
-        for points in pointTotals:
-            printdbg(  points ) 
-            
-            #Create the graph object and add all players to it
-            bracketGraph = nx.Graph()
-            bracketGraph.add_nodes_from(pointLists[points])
-            
-            printdbg( pointLists[points], 5 )
-            printdbg( bracketGraph.nodes(), 5 )
-            
-            #Create edges between all players in the graph who haven't already played
-            for player in bracketGraph.nodes():
-                for opponent in bracketGraph.nodes():
-                    if opponent not in self.playersDict[player]["Opponents"] and player != opponent:
-                        #Weight 1 is the default, if a person has more points, give higher weight to make sure they get paired this time
-                        wgt = 1
-                        if self.playersDict[player]["Points"] > points or self.playersDict[opponent]["Points"] > points:
-                            wgt = 2
-                        #Create edge
-                        bracketGraph.add_edge(player, opponent, weight=wgt)
-            
-            #Generate pairings from the created graph
-            pairings = nx.max_weight_matching(bracketGraph)
-            
-            printdbg( pairings, 3 )
-            
-            #Actually pair the players based on the matching we found
-            for p in pairings:
-                if p in pointLists[points]:
-                    self.pairPlayers(p, pairings[p])
-                    pointLists[points].remove(p)
-                    pointLists[points].remove(pairings[p])
+            #Add all players to pointLists
+            for player in self.playersDict:
+                info = self.playersDict[player]
+                #If this point amount isn't in the list, add it
+                if "%s_1"%info['Points'] not in pointLists:
+                    pointLists["%s_1"%info['Points']] = []
+                    self.countPoints[info['Points']] = 1
                 
-            #Check if we have an odd man out that we need to pair down
-            if len(pointLists[points]) > 0:
-                #Check to make sure we aren't at the last player in the event
-                printdbg(  "Player %s left in %s. The index is %s and the length of totals is %s"%(pointLists[points][0], points, pointTotals.index(points), len(pointTotals)), 1)
-                if pointTotals.index(points) + 1 == len(pointTotals):
-                    while len(pointLists[points]) > 0:
-                        #If they are the last player give them a bye
-                        self.assignBye(pointLists[points].pop(0))
-                else:
-                    #Add our player to the next point group down
-                    nextPoints = pointTotals[pointTotals.index(points) + 1]
+                #Breakers the players into groups of their current points up to the max group allowed.
+                #Smaller groups mean faster calculations
+                if len(pointLists["%s_%s"%(info['Points'], self.countPoints[info['Points']])]) > self.MaxGroup:
+                    self.countPoints[info['Points']] += 1
+                    pointLists["%s_%s"%(info['Points'], self.countPoints[info['Points']])] = []
+                
+                #Add our player to the correct group
+                pointLists["%s_%s"%(info['Points'], self.countPoints[info['Points']])].append(player)
+                
+            #Add all points in use to pointTotals
+            for points in pointLists:
+                pointTotals.append(points)
+                
+                #Randomize the players in the list so the first player isn't always the first paired
+                random.shuffle(pointLists[points])
+                
+            #Sort our point groups based on points
+            pointTotals.sort(reverse=True, key=lambda s: int(s.split('_')[0]))
+            
+            printdbg( "Point toals after sorting high to low are: %s"%pointTotals, 1 )
+
+            #Actually pair the players utilizing graph theory networkx
+            for points in pointTotals:
+                printdbg(  points ) 
+                
+                #Create the graph object and add all players to it
+                bracketGraph = nx.Graph()
+                bracketGraph.add_nodes_from(pointLists[points])
+                
+                printdbg( pointLists[points], 5 )
+                printdbg( bracketGraph.nodes(), 5 )
+                
+                #Create edges between all players in the graph who haven't already played
+                for player in bracketGraph.nodes():
+                    for opponent in bracketGraph.nodes():
+                        if opponent not in self.playersDict[player]["Opponents"] and player != opponent:
+                            #Weight 1 is the default, if a person has more points, give higher weight to make sure they get paired this time
+                            wgt = 1
+                            if self.playersDict[player]["Points"] > points or self.playersDict[opponent]["Points"] > points:
+                                wgt = 2
+                            #Create edge
+                            bracketGraph.add_edge(player, opponent, weight=wgt)
+                
+                #Generate pairings from the created graph
+                pairings = nx.max_weight_matching(bracketGraph)
+                
+                printdbg( pairings, 3 )
+                
+                #Actually pair the players based on the matching we found
+                for p in pairings:
+                    if p in pointLists[points]:
+                        self.pairPlayers(p, pairings[p])
+                        pointLists[points].remove(p)
+                        pointLists[points].remove(pairings[p])
                     
-                    while len(pointLists[points]) > 0:
-                        pointLists[nextPoints].append(pointLists[points].pop(0))
-                    
-        return self.roundPairings
+                #Check if we have an odd man out that we need to pair down
+                if len(pointLists[points]) > 0:
+                    #Check to make sure we aren't at the last player in the event
+                    printdbg(  "Player %s left in %s. The index is %s and the length of totals is %s"%(pointLists[points][0], points, pointTotals.index(points), len(pointTotals)), 1)
+                    if pointTotals.index(points) + 1 == len(pointTotals):
+                        while len(pointLists[points]) > 0:
+                            #If they are the last player give them a bye
+                            self.assignBye(pointLists[points].pop(0))
+                    else:
+                        #Add our player to the next point group down
+                        nextPoints = pointTotals[pointTotals.index(points) + 1]
+                        
+                        while len(pointLists[points]) > 0:
+                            pointLists[nextPoints].append(pointLists[points].pop(0))
+                        
+            #Reassign players with fixed seating needs
+            openTables = []
+            displacedMatches = []
+            
+            for table in self.roundPairings:
+                p1 = self.roundPairings[table][0]
+                p2 = self.roundPairings[table][1]
+                if self.playersDict[p1]["Fixed Seating"]:
+                    #Do Stuff
+                elif self.playersDict[p2]["Fixed Seating"]:
+                    #Do Stuff
+            
+            return self.roundPairings
+        else:
+            #If there are still tables out and we haven't had a forced pairing, return the tables still "playing"
+            return self.tablesOut
                 
     def pairPlayers( self, p1, p2 ):
         printdbg("Pairing players %s and %s"%(p1, p2), 5)
@@ -174,6 +193,7 @@ class Tournament(object):
         self.playersDict[p2]["Opponents"].append(p1)
             
         self.roundPairings[self.openTable] = [p1, p2]
+        self.tablesOut.append(self.openTable)
         
         self.openTable += 1
 
@@ -211,6 +231,9 @@ class Tournament(object):
                 otresult = [result[1], result[0], result[2]]
                 printdbg("Adding result %s for player %s"%(otresult, p2), 2)
                 self.playersDict[p2]["Results"].append(otresult)
+        
+        #Remove table reported from open tables
+        self.tablesOut.remove(table)
 
 def printdbg( msg, level=1 ):
     if dbg == True and level <= debuglevel:
