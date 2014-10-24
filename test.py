@@ -140,5 +140,5 @@ for table in pairings5:
 to.saveEventData("%s/datadump5.txt"%home)
 
 print ""
-#print to.playersDict[256]
+print to.playersDict[256]
 print ""

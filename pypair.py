@@ -11,7 +11,7 @@ import csv
 import random
 
 dbg = True
-debuglevel = 2
+debuglevel = 1
 
 class Tournament(object):
     def __init__( self, startingTable=1 ):
@@ -64,10 +64,13 @@ class Tournament(object):
         with open(pathToLoad, 'rb') as csvfile:
             playerReader = csv.reader(csvfile, delimiter=',')
             for p in playerReader:
+                #skip the row with headers
                 if p[0] != 'DCI:':
                     if p[2]:
+                        #Fixed seating is the third option
                         self.addPlayer( int(p[0]), p[1], int(p[2]) )
                     else:
+                        #If not present, leave it blank
                         self.addPlayer( int(p[0]), p[1] )
 
     def loadEventData( self, pathToLoad ):
@@ -130,11 +133,11 @@ class Tournament(object):
             #Sort our point groups based on points
             pointTotals.sort(reverse=True, key=lambda s: int(s.split('_')[0]))
             
-            printdbg( "Point toals after sorting high to low are: %s"%pointTotals, 1 )
+            printdbg( "Point toals after sorting high to low are: %s"%pointTotals, 3 )
 
             #Actually pair the players utilizing graph theory networkx
             for points in pointTotals:
-                printdbg(  points ) 
+                printdbg( points, 5 ) 
                 
                 #Create the graph object and add all players to it
                 bracketGraph = nx.Graph()
@@ -169,7 +172,7 @@ class Tournament(object):
                 #Check if we have an odd man out that we need to pair down
                 if len(pointLists[points]) > 0:
                     #Check to make sure we aren't at the last player in the event
-                    printdbg(  "Player %s left in %s. The index is %s and the length of totals is %s"%(pointLists[points][0], points, pointTotals.index(points), len(pointTotals)), 1)
+                    printdbg(  "Player %s left in %s. The index is %s and the length of totals is %s"%(pointLists[points][0], points, pointTotals.index(points), len(pointTotals)), 3)
                     if pointTotals.index(points) + 1 == len(pointTotals):
                         while len(pointLists[points]) > 0:
                             #If they are the last player give them a bye
@@ -209,7 +212,7 @@ class Tournament(object):
                     openTables.append(table)
 
                     #Move the match
-                    printdbg( "[Fixed Seating] Moving table %s to table %s"%(table, fixed), 1)
+                    printdbg( "[Fixed Seating] Moving table %s to table %s"%(table, fixed), 2)
                     self.roundPairings[fixed] = self.roundPairings.pop(table)
             
             #Assign players displaced by a fixed seating to new tables
@@ -245,6 +248,8 @@ class Tournament(object):
         printdbg( "%s got the bye"%p1, 2)
         self.playersDict[p1]["Results"].append([0,0,0])
         
+        self.playersDict[p1]["Opponents"].append("bye")
+        
         #Add points for "winning"
         self.playersDict[p1]["Points"] += 3
         
@@ -262,21 +267,37 @@ class Tournament(object):
             #Figure out who won and assing points
             if result[0] > result[1]:
                 self.playersDict[p1]["Points"] += 3
-                printdbg("Adding result %s for player %s"%(result, p1), 2)
+                printdbg("Adding result %s for player %s"%(result, p1), 3)
                 self.playersDict[p1]["Results"].append(result)
                 otresult = [result[1], result[0], result[2]]
-                printdbg("Adding result %s for player %s"%(otresult, p2), 2)
+                printdbg("Adding result %s for player %s"%(otresult, p2), 3)
                 self.playersDict[p2]["Results"].append(otresult)
             elif result[1] > result[0]:
                 self.playersDict[p2]["Points"] += 3
-                printdbg("Adding result %s for player %s"%(result, p1), 2)
+                printdbg("Adding result %s for player %s"%(result, p1), 3)
                 self.playersDict[p1]["Results"].append(result)
                 otresult = [result[1], result[0], result[2]]
-                printdbg("Adding result %s for player %s"%(otresult, p2), 2)
+                printdbg("Adding result %s for player %s"%(otresult, p2), 3)
                 self.playersDict[p2]["Results"].append(otresult)
         
         #Remove table reported from open tables
         self.tablesOut.remove(table)
+        
+        #When the last table reports, update tie breakers automatically
+        if not len(self.tablesOut):
+            self.calculateTieBreakers()
+        
+    def calculateTieBreakers( self ):
+        for p in self.playersDict:
+            opponentWinPercents = []
+            for opponent in self.playersDict[p]["Opponents"]:
+                if opponent != "bye":
+                    winPercent = max(self.playersDict[opponent]["Points"] / float((len(self.playersDict[opponent]["Opponents"])*3)), 0.33)
+                    printdbg( "%s contributed %s breakers"%(opponent, winPercent), 3)
+                    opponentWinPercents.append(winPercent)
+            
+            if len(opponentWinPercents):
+                self.playersDict[p]["OMW%"] = "%.5f" %(sum(opponentWinPercents) / float(len(opponentWinPercents)))
 
 def printdbg( msg, level=1 ):
     if dbg == True and level <= debuglevel:
