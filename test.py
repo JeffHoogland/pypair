@@ -8,10 +8,10 @@ home = os.path.expanduser("~")
 
 to = Tournament()
 
-for p in range(10):
-    to.addPlayer( p, "Timmy" )
+#for p in range(10):
+#    to.addPlayer( p, "Timmy" )
 
-to.addPlayer( 3208256023, "Jeff Hoogland", 2)
+to.loadPlayersCSV("playerlist.csv")
 
 pairings1 = to.pairRound()
 
@@ -36,7 +36,7 @@ for table in pairings1:
 to.saveEventData("%s/datadump1.txt"%home)
 
 print ""
-print to.playersDict[3208256023]
+#print to.playersDict[256]
 print ""
 
 pairings2 = to.pairRound()
@@ -62,7 +62,7 @@ for table in pairings2:
 to.saveEventData("%s/datadump2.txt"%home)
 
 print ""
-print to.playersDict[3208256023]
+#print to.playersDict[256]
 print ""
 
 pairings3 = to.pairRound()
@@ -88,7 +88,7 @@ for table in pairings3:
 to.saveEventData("%s/datadump3.txt"%home)
 
 print ""
-print to.playersDict[3208256023]
+#print to.playersDict[256]
 print ""
 
 pairings4 = to.pairRound()
@@ -114,7 +114,7 @@ for table in pairings4:
 to.saveEventData("%s/datadump4.txt"%home)
 
 print ""
-print to.playersDict[3208256023]
+#print to.playersDict[256]
 print ""
 
 pairings5 = to.pairRound()
@@ -140,5 +140,5 @@ for table in pairings5:
 to.saveEventData("%s/datadump5.txt"%home)
 
 print ""
-print to.playersDict[3208256023]
+#print to.playersDict[256]
 print ""

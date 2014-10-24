@@ -6,10 +6,12 @@ A tool for pairing players in a swiss event
 import networkx as nx
 #Library for loading player dumps
 import cPickle as pickle
+
+import csv
 import random
 
 dbg = True
-debuglevel = 1
+debuglevel = 2
 
 class Tournament(object):
     def __init__( self, startingTable=1 ):
@@ -57,6 +59,16 @@ class Tournament(object):
                                         "Points":0,
                                         "OMW%": 0.0,
                                         "Fixed Seating":fixedSeating}
+    
+    def loadPlayersCSV( self, pathToLoad ):
+        with open(pathToLoad, 'rb') as csvfile:
+            playerReader = csv.reader(csvfile, delimiter=',')
+            for p in playerReader:
+                if p[0] != 'DCI:':
+                    if p[2]:
+                        self.addPlayer( int(p[0]), p[1], int(p[2]) )
+                    else:
+                        self.addPlayer( int(p[0]), p[1] )
 
     def loadEventData( self, pathToLoad ):
         self.playersDict = pickle.load( open( pathToLoad, "rb" ) )
