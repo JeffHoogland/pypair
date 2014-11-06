@@ -2,6 +2,11 @@
 A tool for pairing players in a swiss event
 '''
 
+#User defined values
+winPoints = 3
+drawPoints = 1
+byePoints = winPoints
+
 #Load our library for building/working with graphs
 import networkx as nx
 #Library for loading player dumps
@@ -38,22 +43,22 @@ class Tournament(object):
         #Contains the list of tables that haven't reported for the current round
         self.tablesOut = []
         
-    def addPlayer( self, DCINumber, playerName, fixedSeating=False ):
+    def addPlayer( self, IDNumber, playerName, fixedSeating=False ):
         
         '''
         Holds player data that are in the event.
 
-        Each player entry is a dictonary named by DCI#
+        Each player entry is a dictonary named by ID#
 
-        DCI : { Name:String,
-                Opponents:List, Each entry is a DCI number of someone you played
+        ID : { Name:String,
+                Opponents:List, Each entry is a ID number of someone you played
                 Results:List, Each entry is a list of wins-losses-draws for the round
                 Points:Int,
                 OMW%:Float,
                 Fixed Seating:Bool/Int, if False no fixed seating, if int that is the assigned table number}
         '''
         
-        self.playersDict[DCINumber] = {  "Name": playerName,
+        self.playersDict[IDNumber] = {  "Name": playerName,
                                         "Opponents":[],
                                         "Results":[],
                                         "Points":0,
@@ -65,7 +70,7 @@ class Tournament(object):
             playerReader = csv.reader(csvfile, delimiter=',')
             for p in playerReader:
                 #skip the row with headers
-                if p[0] != 'DCI:':
+                if p[0] != 'ID:':
                     if p[2]:
                         #Fixed seating is the third option
                         self.addPlayer( int(p[0]), p[1], int(p[2]) )
@@ -251,7 +256,7 @@ class Tournament(object):
         self.playersDict[p1]["Opponents"].append("bye")
         
         #Add points for "winning"
-        self.playersDict[p1]["Points"] += 3
+        self.playersDict[p1]["Points"] += byePoints
         
     def reportMatch( self, table, result ):
         #table is an integer of the table number, result is a list
@@ -259,9 +264,9 @@ class Tournament(object):
         p2 = self.roundPairings[table][1]
         if result[0] == result[1]:
             #If values are the same they drew! Give'em each a point
-            self.playersDict[p1]["Points"] += 1
+            self.playersDict[p1]["Points"] += drawPoints
             self.playersDict[p1]["Results"].append(result)
-            self.playersDict[p2]["Points"] += 1
+            self.playersDict[p2]["Points"] += drawPoints
             self.playersDict[p2]["Results"].append(result)
         else:
             #Figure out who won and assing points
@@ -273,7 +278,7 @@ class Tournament(object):
                 printdbg("Adding result %s for player %s"%(otresult, p2), 3)
                 self.playersDict[p2]["Results"].append(otresult)
             elif result[1] > result[0]:
-                self.playersDict[p2]["Points"] += 3
+                self.playersDict[p2]["Points"] += winPoints
                 printdbg("Adding result %s for player %s"%(result, p1), 3)
                 self.playersDict[p1]["Results"].append(result)
                 otresult = [result[1], result[0], result[2]]
@@ -290,12 +295,16 @@ class Tournament(object):
     def calculateTieBreakers( self ):
         for p in self.playersDict:
             opponentWinPercents = []
+            #Loop through all opponents
             for opponent in self.playersDict[p]["Opponents"]:
+                #Make sure it isn't a bye
                 if opponent != "bye":
+                    #Calculate win percent out to five decimal places, minimum of .33 per person
                     winPercent = max(self.playersDict[opponent]["Points"] / float((len(self.playersDict[opponent]["Opponents"])*3)), 0.33)
                     printdbg( "%s contributed %s breakers"%(opponent, winPercent), 3)
                     opponentWinPercents.append(winPercent)
             
+            #Make sure we have opponents
             if len(opponentWinPercents):
                 self.playersDict[p]["OMW%"] = "%.5f" %(sum(opponentWinPercents) / float(len(opponentWinPercents)))
 
