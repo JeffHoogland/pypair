@@ -271,7 +271,7 @@ class Tournament(object):
         else:
             #Figure out who won and assing points
             if result[0] > result[1]:
-                self.playersDict[p1]["Points"] += 3
+                self.playersDict[p1]["Points"] += winPoints
                 printdbg("Adding result %s for player %s"%(result, p1), 3)
                 self.playersDict[p1]["Results"].append(result)
                 otresult = [result[1], result[0], result[2]]
