@@ -19,7 +19,7 @@ import csv
 import random
 
 dbg = True
-debuglevel = 5
+debuglevel = 1
 
 class Tournament(object):
     def __init__( self, startingTable=1 ):
@@ -69,7 +69,7 @@ class Tournament(object):
                                         "Fixed Seating":fixedSeating}
     
     def loadPlayersCSV( self, pathToLoad ):
-        with open(pathToLoad, 'rb') as csvfile:
+        with open(pathToLoad) as csvfile:
             playerReader = csv.reader(csvfile, delimiter=',')
             for p in playerReader:
                 #skip the row with headers
@@ -135,9 +135,6 @@ class Tournament(object):
             for points in pointLists:
                 pointTotals.append(points)
                 
-                #Randomize the players in the list so the first player isn't always the first paired
-                random.shuffle(pointLists[points])
-                
             #Sort our point groups based on points
             pointTotals.sort(reverse=True, key=lambda s: int(s.split('_')[0]))
             
@@ -158,11 +155,11 @@ class Tournament(object):
                 for player in bracketGraph.nodes():
                     for opponent in bracketGraph.nodes():
                         if opponent not in self.playersDict[player]["Opponents"] and player != opponent:
-                            #Weight 1 is the default, if a person has more points, give higher weight to make sure they get paired this time
-                            wgt = 1
-                            print(points)
+                            #Weight edges randomly between 1 and 9 to ensure pairings are not always the same with the same list of players
+                            wgt = random.randint(1, 9)
+                            #If a player has more points, weigh them the highest so they get paired first
                             if self.playersDict[player]["Points"] > int(points.split('_')[0]) or self.playersDict[opponent]["Points"] > int(points.split('_')[0]):
-                                wgt = 2
+                                wgt = 10
                             #Create edge
                             bracketGraph.add_edge(player, opponent, weight=wgt)
                 
