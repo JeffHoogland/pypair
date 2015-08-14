@@ -10,13 +10,16 @@ byePoints = winPoints
 #Load our library for building/working with graphs
 import networkx as nx
 #Library for loading player dumps
-import cPickle as pickle
+try:
+    import cPickle as pickle
+except:
+    import pickle as pickle
 
 import csv
 import random
 
 dbg = True
-debuglevel = 1
+debuglevel = 5
 
 class Tournament(object):
     def __init__( self, startingTable=1 ):
@@ -157,7 +160,8 @@ class Tournament(object):
                         if opponent not in self.playersDict[player]["Opponents"] and player != opponent:
                             #Weight 1 is the default, if a person has more points, give higher weight to make sure they get paired this time
                             wgt = 1
-                            if self.playersDict[player]["Points"] > points or self.playersDict[opponent]["Points"] > points:
+                            print(points)
+                            if self.playersDict[player]["Points"] > int(points.split('_')[0]) or self.playersDict[opponent]["Points"] > int(points.split('_')[0]):
                                 wgt = 2
                             #Create edge
                             bracketGraph.add_edge(player, opponent, weight=wgt)
@@ -310,4 +314,4 @@ class Tournament(object):
 
 def printdbg( msg, level=1 ):
     if dbg == True and level <= debuglevel:
-        print msg
+        print(msg)
