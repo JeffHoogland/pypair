@@ -164,17 +164,19 @@ class Tournament(object):
                             bracketGraph.add_edge(player, opponent, weight=wgt)
                 
                 #Generate pairings from the created graph
-                pairings = nx.max_weight_matching(bracketGraph)
+                pairings = dict(nx.max_weight_matching(bracketGraph))
                 
                 printdbg( pairings, 3 )
-                
+
                 #Actually pair the players based on the matching we found
                 for p in pairings:
                     if p in pointLists[points]:
                         self.pairPlayers(p, pairings[p])
                         pointLists[points].remove(p)
                         pointLists[points].remove(pairings[p])
-                    
+
+                printdbg(pointLists[points], 5)
+
                 #Check if we have an odd man out that we need to pair down
                 if len(pointLists[points]) > 0:
                     #Check to make sure we aren't at the last player in the event
